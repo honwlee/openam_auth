@@ -4,12 +4,16 @@ module OpenamAuth
   class Openam
     include HTTParty
 
+    # COOKIE_NAME_FOR_TOKEN = "/identity/getCookieNameForToken"
+    # IS_TOKEN_VALID = "/identity/isTokenValid"
+    # USER_ATTRIBUTES = "/identity/attributes"
+    # LOGIN_URL = "/UI/Login?goto="
+    # LOGOUT_URL = "/identity/logout"
     COOKIE_NAME_FOR_TOKEN = "/identity/getCookieNameForToken"
-    IS_TOKEN_VALID = "/identity/isTokenValid"
-    USER_ATTRIBUTES = "/identity/attributes"
-    LOGIN_URL = "/UI/Login?goto="
+    IS_TOKEN_VALID = "/json/sessions/"
+    USER_ATTRIBUTES = "/json/users/"
+    LOGIN_URL = "/XUI/#login/"
     LOGOUT_URL = "/identity/logout"
-
 
     def initialize
       @base_url = OpenamConfig.openam_url
@@ -17,7 +21,7 @@ module OpenamAuth
     end
 
     def cookie_name
-      response = self.class.post("#{@base_url}#{COOKIE_NAME_FOR_TOKEN}", {})
+      response = self.class.post("#{@base_url}#{COOKIE_NAME_FOR_TOKEN}",{})
       response.body.split('=').last.strip
     end
 
@@ -27,13 +31,15 @@ module OpenamAuth
     end
 
     def valid_token?(token)
-      response = self.class.get("#{@base_url}#{IS_TOKEN_VALID}?tokenid=#{token}", {})
-      response.body.split('=').last.strip == 'true'
+      response = self.class.post("#{@base_url}#{IS_TOKEN_VALID}#{token}?_action=validate",:headers => { 'Content-Type' => 'application/json' })
+      # response.body.split('=').last.strip == 'true'
+      JSON.parse(response.body)
     end
 
-    def openam_user(token_cookie_name, token)
+    def openam_user(token_cookie_name, token, uid)
       self.class.cookies({ token_cookie_name => token })
-      self.class.post("#{@base_url}#{USER_ATTRIBUTES}", {:subjectid => token})
+      response = self.class.get("#{@base_url}#{USER_ATTRIBUTES}" + uid, :headers =>  { 'Content-Type' => 'application/json' }, token_cookie_name => token)
+      JSON.parse(response.body)
     end
 
     def login_url
@@ -60,4 +66,3 @@ module OpenamAuth
     end
   end
 end
-
